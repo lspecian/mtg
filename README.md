@@ -182,10 +182,34 @@ make ksql-cli
 
 ### Common Issues
 
-1. **Port conflicts**: Ensure ports 8080-8090 are free
-2. **Memory issues**: Allocate at least 8GB RAM to Docker
-3. **Kafka connectivity**: Wait 30s after startup for services to initialize
-4. **Large file warning**: Build artifacts are gitignored, run `make clean` if needed
+1. **"Open Dockerfile: No such file or directory" on setup**
+   - Solution: Run `make fresh-start` to rebuild everything from scratch
+
+2. **Port conflicts**: Ensure ports 8080-8090 are free
+   - Solution: `docker ps` to check what's using ports
+   - Kill conflicting services or change ports in docker-compose.yml
+
+3. **Memory issues**: Allocate at least 8GB RAM to Docker
+   - Docker Desktop → Settings → Resources → Memory: 8GB+
+
+4. **Kafka connectivity**: Wait 30s after startup for services to initialize
+   - Solution: Run `make status` to check service health
+
+5. **Large file warning**: Build artifacts are gitignored
+   - Solution: Run `make clean` to remove build files
+
+### Complete Cleanup Options
+
+```bash
+# Soft reset - keeps data
+make reset
+
+# Complete removal - destroys everything
+make destroy  # Type 'destroy' to confirm
+
+# Fresh start - destroy + setup
+make fresh-start
+```
 
 ### Useful Commands
 

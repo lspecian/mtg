@@ -76,7 +76,7 @@ build-flink: ## Build Flink JAR
 .PHONY: build-docker
 build-docker: ## Build Docker images
 	@echo "🐳 Building Docker images..."
-	$(DOCKER_COMPOSE) build
+	$(DOCKER_COMPOSE) build --no-cache
 	@echo "✅ Docker images built"
 
 # === KAFKA COMMANDS ===
@@ -84,12 +84,27 @@ build-docker: ## Build Docker images
 .PHONY: create-topics
 create-topics: ## Create Kafka topics
 	@echo "📝 Creating Kafka topics..."
-	@$(INGESTOR_DIR)/scripts/create-deck-topics.sh || true
+	@if [ -f "$(INGESTOR_DIR)/scripts/create-deck-topics.sh" ]; then \
+		$(INGESTOR_DIR)/scripts/create-deck-topics.sh || true; \
+	else \
+		echo "⚠️  Script not found, creating topics manually..."; \
+		docker exec kafka sh -c ' \
+			for topic in mtg.cards mtg.sets mtg.prices mtg.statistics mtg.decks mtg.deck-cards mtg.deck-values; do \
+				kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 --topic $$topic || true; \
+			done \
+		' || true; \
+	fi
 	@echo "✅ Kafka topics created"
 
 .PHONY: init-ksql
 init-ksql: ## Initialize KSQL streams
-	@./scripts/init-ksql-streams.sh || true
+	@if [ -f "./scripts/init-ksql-streams.sh" ]; then \
+		./scripts/init-ksql-streams.sh || true; \
+	else \
+		echo "⚠️  Script not found, initializing KSQL manually..."; \
+		sleep 5; \
+		echo "CREATE STREAM IF NOT EXISTS deck_values_stream (eventType VARCHAR, eventId VARCHAR, timestamp BIGINT, source VARCHAR, version VARCHAR, data STRUCT<deck_id VARCHAR, deck_name VARCHAR, total_cards INT, total_value DOUBLE, calculated_at BIGINT>) WITH (KAFKA_TOPIC='mtg.deck-values', VALUE_FORMAT='JSON');" | docker exec -i ksqldb-cli ksql http://ksqldb-server:8088 2>/dev/null || true; \
+	fi
 
 .PHONY: kafka-topics
 kafka-topics: ## List Kafka topics
@@ -129,12 +144,17 @@ test-decks: ## Test deck ingestion (dry-run)
 deploy-flink: ## Deploy Flink jobs
 	@echo "🚀 Deploying Flink jobs..."
 	@if [ ! -f $(FLINK_DIR)/target/mtg-flink-processor-1.0.0.jar ]; then \
-		echo "❌ JAR not found. Running build first..."; \
+		echo "⚠️  JAR not found. Building with Docker..."; \
 		$(MAKE) build-flink-docker; \
 	fi
-	docker cp $(FLINK_DIR)/target/mtg-flink-processor-1.0.0.jar flink-jobmanager:/tmp/
-	docker exec flink-jobmanager flink run -c com.mtg.flink.DeckValueProcessor /tmp/mtg-flink-processor-1.0.0.jar || true
-	@echo "✅ Flink jobs deployed"
+	@if [ -f $(FLINK_DIR)/target/mtg-flink-processor-1.0.0.jar ]; then \
+		docker cp $(FLINK_DIR)/target/mtg-flink-processor-1.0.0.jar flink-jobmanager:/tmp/ && \
+		docker exec flink-jobmanager flink run -c com.mtg.flink.DeckValueProcessor /tmp/mtg-flink-processor-1.0.0.jar || true; \
+		echo "✅ Flink jobs deployed"; \
+	else \
+		echo "⚠️  Flink JAR could not be built. Skipping deployment."; \
+		echo "   You can manually build later with: make build-flink-docker"; \
+	fi
 
 .PHONY: flink-jobs
 flink-jobs: ## List running Flink jobs
@@ -200,8 +220,45 @@ clean-data: ## Clean data volumes (WARNING: deletes all data)
 .PHONY: clean-all
 clean-all: clean clean-data ## Clean everything (artifacts and data)
 
+.PHONY: destroy
+destroy: ## Completely remove everything (containers, volumes, networks, images)
+	@echo "💣 DESTROYING EVERYTHING!"
+	@echo "This will remove:"
+	@echo "  - All containers"
+	@echo "  - All volumes (data will be lost!)"
+	@echo "  - All networks"
+	@echo "  - All MTG Docker images"
+	@read -p "Are you ABSOLUTELY sure? Type 'destroy' to confirm: " confirm; \
+	if [ "$$confirm" = "destroy" ]; then \
+		echo "🗑️  Removing all containers..."; \
+		$(DOCKER_COMPOSE) down -v --remove-orphans || true; \
+		echo "🗑️  Removing Docker images..."; \
+		docker rmi mtg-deck-ingestor mtg-web-ui mtg-ingestor flink-job-builder 2>/dev/null || true; \
+		echo "🗑️  Pruning Docker system..."; \
+		docker system prune -f || true; \
+		echo "✅ Everything destroyed. Run 'make setup' to start fresh."; \
+	else \
+		echo "❌ Cancelled"; \
+	fi
+
 .PHONY: reset
-reset: clean-all setup ## Reset everything and start fresh
+reset: ## Reset everything and start fresh (safer than destroy)
+	@echo "🔄 Resetting environment..."
+	$(DOCKER_COMPOSE) down
+	@echo "Cleaning build artifacts..."
+	@$(MAKE) -s clean
+	@echo "Starting fresh setup..."
+	@$(MAKE) -s setup
+	@echo "✅ Reset complete!"
+
+.PHONY: fresh-start
+fresh-start: ## Complete fresh start from scratch
+	@echo "🆕 Starting completely fresh..."
+	@$(MAKE) -s destroy
+	@echo "Waiting for Docker to clean up..."
+	@sleep 3
+	@$(MAKE) -s setup
+	@echo "✅ Fresh environment ready!"
 
 # === DEVELOPMENT COMMANDS ===
 
