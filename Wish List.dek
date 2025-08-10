@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Deck xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <NetDeckID>0</NetDeckID>
+  <PreconstructedDeckID>0</PreconstructedDeckID>
+  <Cards CatID="118812" Quantity="1" Sideboard="false" Name="Pact of the Serpent" Annotation="0" />
+  <Cards CatID="36344" Quantity="1" Sideboard="false" Name="Guul Draz Assassin" Annotation="0" />
+  <Cards CatID="66629" Quantity="1" Sideboard="false" Name="Twilight Prophet" Annotation="0" />
+</Deck>

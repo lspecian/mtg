@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Data Query Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        .header h1 {
+            text-align: center;
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            height: calc(100vh - 80px);
+        }
+        
+        .sidebar {
+            background: #16213e;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #333;
+        }
+        
+        .sidebar h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .query-templates {
+            margin-bottom: 30px;
+        }
+        
+        .template-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #0f3460;
+            color: #fff;
+            border: 1px solid #667eea;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+        }
+        
+        .template-btn:hover {
+            background: #667eea;
+            transform: translateX(5px);
+        }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+        
+        .query-section {
+            flex: 0 0 auto;
+            margin-bottom: 20px;
+        }
+        
+        .query-editor {
+            background: #0f1419;
+            border: 1px solid #444;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .query-input {
+            width: 100%;
+            background: transparent;
+            color: #0ef;
+            border: none;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 14px;
+            min-height: 100px;
+            resize: vertical;
+            outline: none;
+        }
+        
+        .query-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn.secondary {
+            background: #444;
+        }
+        
+        .results-section {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .results-header {
+            padding: 10px;
+            background: #16213e;
+            border-radius: 5px 5px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .results-container {
+            flex: 1;
+            background: #0f1419;
+            border: 1px solid #444;
+            border-radius: 0 0 5px 5px;
+            overflow: auto;
+            padding: 15px;
+        }
+        
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .result-table th {
+            background: #16213e;
+            color: #667eea;
+            padding: 10px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .result-table td {
+            padding: 8px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .result-table tr:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+        
+        .status.running {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .status.error {
+            background: #f44336;
+            color: white;
+        }
+        
+        .status.idle {
+            background: #666;
+            color: white;
+        }
+        
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #444;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #999;
+            margin-top: 5px;
+        }
+        
+        .query-history {
+            margin-top: 20px;
+        }
+        
+        .history-item {
+            padding: 8px;
+            background: #0f3460;
+            margin-bottom: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.9em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .history-item:hover {
+            background: #667eea;
+        }
+        
+        .error-message {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid #f44336;
+            color: #ff6b6b;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .json-view {
+            background: #0f1419;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎴 MTG Data Query Interface</h1>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar">
+            <div class="query-templates">
+                <h2>📋 Query Templates</h2>
+                <button class="template-btn" onclick="loadTemplate('recentCards')">
+                    Recent Cards
+                </button>
+                <button class="template-btn" onclick="loadTemplate('rareCards')">
+                    Rare & Mythic Cards
+                </button>
+                <button class="template-btn" onclick="loadTemplate('cardsBySet')">
+                    Cards by Set
+                </button>
+                <button class="template-btn" onclick="loadTemplate('priceAlerts')">
+                    High Price Alerts
+                </button>
+                <button class="template-btn" onclick="loadTemplate('cardStats')">
+                    Card Statistics
+                </button>
+                <button class="template-btn" onclick="loadTemplate('colorDistribution')">
+                    Color Distribution
+                </button>
+            </div>
+            
+            <div class="query-history">
+                <h2>📜 Query History</h2>
+                <div id="history-list"></div>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="query-count">0</div>
+                    <div class="stat-label">Queries Run</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="result-count">0</div>
+                    <div class="stat-label">Total Results</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="query-section">
+                <div class="query-editor">
+                    <textarea id="query-input" class="query-input" placeholder="Enter your KSQL query here...
+Example: SELECT * FROM cards_raw LIMIT 10;"></textarea>
+                </div>
+                
+                <div class="query-controls">
+                    <button class="btn" onclick="executeQuery()">
+                        ▶️ Execute Query
+                    </button>
+                    <button class="btn secondary" onclick="clearQuery()">
+                        Clear
+                    </button>
+                    <button class="btn secondary" onclick="formatQuery()">
+                        Format
+                    </button>
+                    <select id="output-format" style="padding: 10px; background: #444; color: white; border: none; border-radius: 5px;">
+                        <option value="table">Table View</option>
+                        <option value="json">JSON View</option>
+                        <option value="cards">Card View</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="results-section">
+                <div class="results-header">
+                    <h3>📊 Query Results</h3>
+                    <div>
+                        <span id="query-status" class="status idle">Idle</span>
+                        <span id="result-info" style="margin-left: 10px;"></span>
+                    </div>
+                </div>
+                
+                <div class="results-container" id="results">
+                    <p style="color: #666; text-align: center; margin-top: 50px;">
+                        Execute a query to see results here...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Query templates
+        const templates = {
+            recentCards: `SELECT 
+    card->name AS card_name,
+    card->type AS card_type,
+    card->rarity AS rarity,
+    card->setCode AS set_code
+FROM cards_raw 
+LIMIT 20;`,
+            
+            rareCards: `SELECT 
+    card->name AS card_name,
+    card->rarity AS rarity,
+    card->type AS card_type
+FROM cards_raw 
+WHERE card->rarity IN ('rare', 'mythic')
+LIMIT 50;`,
+            
+            cardsBySet: `SELECT 
+    card->setCode AS set_code,
+    COUNT(*) AS card_count
+FROM cards_raw 
+GROUP BY card->setCode
+EMIT CHANGES
+LIMIT 10;`,
+            
+            priceAlerts: `SELECT 
+    data->card_uuid AS card_id,
+    data->price AS price,
+    data->date AS price_date
+FROM prices_raw 
+WHERE data->price > 100
+LIMIT 20;`,
+            
+            cardStats: `SELECT 
+    COUNT(*) AS total_cards,
+    COUNT(CASE WHEN card->rarity = 'mythic' THEN 1 END) AS mythic_count,
+    COUNT(CASE WHEN card->rarity = 'rare' THEN 1 END) AS rare_count
+FROM cards_raw;`,
+            
+            colorDistribution: `SELECT 
+    card->colors AS colors,
+    COUNT(*) AS count
+FROM cards_raw 
+GROUP BY card->colors
+LIMIT 20;`
+        };
+        
+        let queryHistory = [];
+        let queryCount = 0;
+        let totalResults = 0;
+        
+        // Load template
+        function loadTemplate(templateName) {
+            const query = templates[templateName];
+            if (query) {
+                document.getElementById('query-input').value = query;
+            }
+        }
+        
+        // Execute query
+        async function executeQuery() {
+            const queryInput = document.getElementById('query-input');
+            const query = queryInput.value.trim();
+            
+            if (!query) {
+                alert('Please enter a query');
+                return;
+            }
+            
+            const statusEl = document.getElementById('query-status');
+            const resultsEl = document.getElementById('results');
+            
+            statusEl.className = 'status running';
+            statusEl.innerHTML = '<span class="loader"></span> Running...';
+            resultsEl.innerHTML = '<div style="text-align: center; margin-top: 50px;"><div class="loader"></div><p>Executing query...</p></div>';
+            
+            try {
+                // Add to history
+                addToHistory(query);
+                queryCount++;
+                document.getElementById('query-count').textContent = queryCount;
+                
+                // Execute via KSQL REST API
+                const response = await fetch('http://localhost:8088/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/vnd.ksql.v1+json',
+                        'Accept': 'application/vnd.ksql.v1+json'
+                    },
+                    body: JSON.stringify({
+                        ksql: query,
+                        streamsProperties: {}
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                displayResults(data);
+                
+                statusEl.className = 'status idle';
+                statusEl.textContent = 'Success';
+                
+            } catch (error) {
+                console.error('Query error:', error);
+                
+                // For demo, show sample data
+                const sampleData = generateSampleData(query);
+                displayResults(sampleData);
+                
+                statusEl.className = 'status idle';
+                statusEl.textContent = 'Sample Data';
+            }
+        }
+        
+        // Generate sample data for demo
+        function generateSampleData(query) {
+            const lowerQuery = query.toLowerCase();
+            
+            if (lowerQuery.includes('rare') || lowerQuery.includes('mythic')) {
+                return {
+                    rows: [
+                        ['Black Lotus', 'mythic', 'Artifact', 'LEA'],
+                        ['Ancestral Recall', 'rare', 'Instant', 'LEA'],
+                        ['Time Walk', 'rare', 'Sorcery', 'LEA'],
+                        ['Mox Sapphire', 'rare', 'Artifact', 'LEA'],
+                        ['Mox Ruby', 'rare', 'Artifact', 'LEA']
+                    ],
+                    columns: ['Card Name', 'Rarity', 'Type', 'Set']
+                };
+            } else if (lowerQuery.includes('price')) {
+                return {
+                    rows: [
+                        ['card_001', 15000.00, '2025-08-09'],
+                        ['card_002', 8500.00, '2025-08-09'],
+                        ['card_003', 5000.00, '2025-08-09'],
+                        ['card_004', 2500.00, '2025-08-09']
+                    ],
+                    columns: ['Card ID', 'Price', 'Date']
+                };
+            } else {
+                return {
+                    rows: [
+                        ['Lightning Bolt', 'Instant', 'common', 'LEA'],
+                        ['Counterspell', 'Instant', 'common', 'LEA'],
+                        ['Dark Ritual', 'Instant', 'common', 'LEA'],
+                        ['Giant Growth', 'Instant', 'common', 'LEA'],
+                        ['Swords to Plowshares', 'Instant', 'uncommon', 'LEA']
+                    ],
+                    columns: ['Card Name', 'Type', 'Rarity', 'Set']
+                };
+            }
+        }
+        
+        // Display results
+        function displayResults(data) {
+            const resultsEl = document.getElementById('results');
+            const format = document.getElementById('output-format').value;
+            
+            if (!data || !data.rows) {
+                resultsEl.innerHTML = '<p style="color: #666;">No results found</p>';
+                return;
+            }
+            
+            totalResults += data.rows.length;
+            document.getElementById('result-count').textContent = totalResults;
+            document.getElementById('result-info').textContent = `${data.rows.length} rows`;
+            
+            if (format === 'json') {
+                resultsEl.innerHTML = `<div class="json-view">${JSON.stringify(data, null, 2)}</div>`;
+            } else if (format === 'cards') {
+                displayCardView(data);
+            } else {
+                displayTableView(data);
+            }
+        }
+        
+        // Display table view
+        function displayTableView(data) {
+            const resultsEl = document.getElementById('results');
+            
+            let html = '<table class="result-table"><thead><tr>';
+            
+            // Headers
+            for (const col of data.columns) {
+                html += `<th>${col}</th>`;
+            }
+            html += '</tr></thead><tbody>';
+            
+            // Rows
+            for (const row of data.rows) {
+                html += '<tr>';
+                for (const cell of row) {
+                    html += `<td>${cell !== null ? cell : '-'}</td>`;
+                }
+                html += '</tr>';
+            }
+            
+            html += '</tbody></table>';
+            resultsEl.innerHTML = html;
+        }
+        
+        // Display card view
+        function displayCardView(data) {
+            const resultsEl = document.getElementById('results');
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">';
+            
+            for (const row of data.rows) {
+                const card = {
+                    name: row[0] || 'Unknown',
+                    type: row[1] || 'Unknown',
+                    rarity: row[2] || 'common',
+                    set: row[3] || 'UNK'
+                };
+                
+                const rarityColor = {
+                    'mythic': '#ff6b35',
+                    'rare': '#ffd700',
+                    'uncommon': '#c0c0c0',
+                    'common': '#808080'
+                }[card.rarity] || '#808080';
+                
+                html += `
+                    <div style="background: #16213e; padding: 15px; border-radius: 8px; border: 2px solid ${rarityColor};">
+                        <h4 style="color: ${rarityColor}; margin-bottom: 10px;">${card.name}</h4>
+                        <p style="color: #999; font-size: 0.9em;">Type: ${card.type}</p>
+                        <p style="color: #999; font-size: 0.9em;">Rarity: ${card.rarity}</p>
+                        <p style="color: #999; font-size: 0.9em;">Set: ${card.set}</p>
+                    </div>
+                `;
+            }
+            
+            html += '</div>';
+            resultsEl.innerHTML = html;
+        }
+        
+        // Add to history
+        function addToHistory(query) {
+            queryHistory.unshift(query);
+            if (queryHistory.length > 10) {
+                queryHistory.pop();
+            }
+            updateHistoryDisplay();
+        }
+        
+        // Update history display
+        function updateHistoryDisplay() {
+            const historyEl = document.getElementById('history-list');
+            historyEl.innerHTML = queryHistory.map((q, i) => 
+                `<div class="history-item" onclick="loadFromHistory(${i})">${q}</div>`
+            ).join('');
+        }
+        
+        // Load from history
+        function loadFromHistory(index) {
+            document.getElementById('query-input').value = queryHistory[index];
+        }
+        
+        // Clear query
+        function clearQuery() {
+            document.getElementById('query-input').value = '';
+        }
+        
+        // Format query
+        function formatQuery() {
+            const input = document.getElementById('query-input');
+            let query = input.value;
+            
+            // Basic formatting
+            query = query.replace(/SELECT/gi, 'SELECT\n    ');
+            query = query.replace(/FROM/gi, '\nFROM');
+            query = query.replace(/WHERE/gi, '\nWHERE');
+            query = query.replace(/GROUP BY/gi, '\nGROUP BY');
+            query = query.replace(/ORDER BY/gi, '\nORDER BY');
+            query = query.replace(/LIMIT/gi, '\nLIMIT');
+            
+            input.value = query;
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                executeQuery();
+            } else if (e.ctrlKey && e.key === 'l') {
+                e.preventDefault();
+                clearQuery();
+            }
+        });
+        
+        // Auto-refresh stats
+        setInterval(() => {
+            // Could fetch real stats from server
+            const statusEl = document.getElementById('query-status');
+            if (statusEl.classList.contains('idle')) {
+                // Update connection status
+            }
+        }, 5000);
+    </script>
+</body>
+</html>

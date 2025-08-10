@@ -1,0 +1,33 @@
+app:
+  name: mtg-ingestor
+  environment: production
+  log_level: info
+
+kafka:
+  brokers: kafka:29092
+  topics:
+    cards: mtg.cards
+    sets: mtg.sets
+    prices: mtg.prices
+  producer:
+    retries: 10
+    batch_size: 16384
+
+postgres:
+  host: postgres
+  port: 5432
+  database: mtg
+  user: mtg_user
+  password: ${POSTGRES_PASSWORD}
+  ssl_mode: require
+  max_connections: 10
+
+s3:
+  bucket: mtg-data
+  region: us-east-1
+  prefix: raw/mtgjson
+
+fetcher:
+  timeout: 30m
+  retry_attempts: 3
+  retry_delay: 5s

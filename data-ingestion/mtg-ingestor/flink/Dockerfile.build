@@ -1,0 +1,15 @@
+# Build stage for Flink job
+FROM maven:3.8-openjdk-11 AS builder
+
+WORKDIR /app
+
+# Copy POM and source files
+COPY pom.xml .
+COPY src ./src
+
+# Build the JAR
+RUN mvn clean package
+
+# Final stage - just output the JAR
+FROM busybox
+COPY --from=builder /app/target/*.jar /output/

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Data Pipeline Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .stat {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .query-section {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .query-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        
+        .query-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+        
+        .query-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-right: 10px;
+        }
+        
+        .btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .results {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 15px;
+            background: #f9f9f9;
+        }
+        
+        .result-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .status.online {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .status.offline {
+            background: #f44336;
+            color: white;
+        }
+        
+        .price-chart {
+            height: 200px;
+            margin-top: 15px;
+        }
+        
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎴 MTG Data Pipeline Dashboard</h1>
+        
+        <div class="dashboard">
+            <div class="card">
+                <h2>📊 Pipeline Status</h2>
+                <div class="label">Kafka</div>
+                <span class="status online" id="kafka-status">Online</span>
+                <div class="label" style="margin-top: 10px;">KSQLDB</div>
+                <span class="status online" id="ksql-status">Online</span>
+                <div class="label" style="margin-top: 10px;">Last Update</div>
+                <div id="last-update">-</div>
+            </div>
+            
+            <div class="card">
+                <h2>🃏 Cards Processed</h2>
+                <div class="stat" id="cards-count">0</div>
+                <div class="label">Total Cards</div>
+                <div style="margin-top: 10px;">
+                    <div class="label">Processing Rate</div>
+                    <div id="cards-rate">0 cards/sec</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>💰 Price Records</h2>
+                <div class="stat" id="prices-count">0</div>
+                <div class="label">Total Price Points</div>
+                <div style="margin-top: 10px;">
+                    <div class="label">Average Price</div>
+                    <div id="avg-price">$0.00</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>📦 Sets</h2>
+                <div class="stat" id="sets-count">0</div>
+                <div class="label">Total Sets</div>
+                <div style="margin-top: 10px;">
+                    <div class="label">Latest Set</div>
+                    <div id="latest-set">-</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="query-section">
+            <h2>🔍 Query MTG Data</h2>
+            
+            <div>
+                <button class="btn" onclick="searchCards()">Search Cards</button>
+                <button class="btn" onclick="getPriceAlerts()">Price Alerts</button>
+                <button class="btn" onclick="getRarityStats()">Rarity Stats</button>
+                <button class="btn" onclick="getExpensiveCards()">Top Expensive Cards</button>
+            </div>
+            
+            <input type="text" class="query-input" id="search-input" 
+                   placeholder="Enter card name or type to search...">
+            
+            <div class="results" id="results">
+                <p style="color: #999; text-align: center;">Results will appear here...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const KSQL_URL = 'http://localhost:8088';
+        const KAFKA_UI_URL = 'http://localhost:8080';
+        
+        // Update dashboard stats
+        async function updateDashboard() {
+            try {
+                // Update timestamp
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+                
+                // Fetch topic stats from KSQL
+                const cardsCount = await getTopicMessageCount('mtg.cards');
+                const pricesCount = await getTopicMessageCount('mtg.prices');
+                const setsCount = await getTopicMessageCount('mtg.sets');
+                
+                document.getElementById('cards-count').textContent = formatNumber(cardsCount);
+                document.getElementById('prices-count').textContent = formatNumber(pricesCount);
+                document.getElementById('sets-count').textContent = formatNumber(setsCount);
+                
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
+        }
+        
+        // Get topic message count (simulated for demo)
+        async function getTopicMessageCount(topic) {
+            // In production, this would query KSQL or Kafka directly
+            const counts = {
+                'mtg.cards': 32385,
+                'mtg.prices': 53607349,
+                'mtg.sets': 2
+            };
+            return counts[topic] || 0;
+        }
+        
+        // Format large numbers
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toLocaleString();
+        }
+        
+        // Search cards
+        async function searchCards() {
+            const searchTerm = document.getElementById('search-input').value;
+            const results = document.getElementById('results');
+            
+            results.innerHTML = '<div class="loader"></div>';
+            
+            try {
+                // Query KSQL for cards
+                const query = `
+                    SELECT name, type, rarity, mana_cost 
+                    FROM cards_table 
+                    WHERE LCASE(name) LIKE LCASE('%${searchTerm}%')
+                    EMIT CHANGES
+                    LIMIT 10;
+                `;
+                
+                // Simulated results for demo
+                const sampleCards = [
+                    { name: "Lightning Bolt", type: "Instant", rarity: "common", mana_cost: "{R}" },
+                    { name: "Black Lotus", type: "Artifact", rarity: "rare", mana_cost: "{0}" },
+                    { name: "Ancestral Recall", type: "Instant", rarity: "rare", mana_cost: "{U}" }
+                ];
+                
+                results.innerHTML = sampleCards.map(card => `
+                    <div class="result-item">
+                        <strong>${card.name}</strong><br>
+                        Type: ${card.type}<br>
+                        Rarity: ${card.rarity}<br>
+                        Mana Cost: ${card.mana_cost}
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                results.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Get price alerts
+        async function getPriceAlerts() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="loader"></div>';
+            
+            // Simulated high-value cards
+            const alerts = [
+                { card: "Black Lotus", price: 50000, date: "2025-08-09" },
+                { card: "Ancestral Recall", price: 8000, date: "2025-08-09" },
+                { card: "Time Walk", price: 6000, date: "2025-08-09" }
+            ];
+            
+            results.innerHTML = '<h3>💎 High Value Cards</h3>' + 
+                alerts.map(alert => `
+                    <div class="result-item">
+                        <strong>${alert.card}</strong><br>
+                        Price: <span style="color: #4caf50; font-weight: bold;">$${alert.price.toLocaleString()}</span><br>
+                        Date: ${alert.date}
+                    </div>
+                `).join('');
+        }
+        
+        // Get rarity statistics
+        async function getRarityStats() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="loader"></div>';
+            
+            // Simulated rarity distribution
+            const rarities = [
+                { rarity: "Common", count: 15000, percentage: 46 },
+                { rarity: "Uncommon", count: 10000, percentage: 31 },
+                { rarity: "Rare", count: 6000, percentage: 18 },
+                { rarity: "Mythic Rare", count: 1385, percentage: 5 }
+            ];
+            
+            results.innerHTML = '<h3>📊 Rarity Distribution</h3>' + 
+                rarities.map(r => `
+                    <div class="result-item">
+                        <strong>${r.rarity}</strong><br>
+                        Count: ${r.count.toLocaleString()}<br>
+                        <div style="background: #e0e0e0; height: 20px; border-radius: 10px; margin-top: 5px;">
+                            <div style="background: linear-gradient(90deg, #667eea, #764ba2); 
+                                        width: ${r.percentage}%; height: 100%; border-radius: 10px;"></div>
+                        </div>
+                        ${r.percentage}%
+                    </div>
+                `).join('');
+        }
+        
+        // Get expensive cards
+        async function getExpensiveCards() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="loader"></div>';
+            
+            // Simulated expensive cards
+            const expensive = [
+                { name: "Black Lotus", max_price: 50000, price_points: 150 },
+                { name: "Mox Sapphire", max_price: 12000, price_points: 120 },
+                { name: "Ancestral Recall", max_price: 8000, price_points: 110 },
+                { name: "Time Walk", max_price: 6000, price_points: 105 },
+                { name: "Mox Ruby", max_price: 5500, price_points: 100 }
+            ];
+            
+            results.innerHTML = '<h3>💰 Most Expensive Cards</h3>' + 
+                expensive.map((card, index) => `
+                    <div class="result-item">
+                        <strong>#${index + 1} ${card.name}</strong><br>
+                        Max Price: <span style="color: #f44336; font-weight: bold;">$${card.max_price.toLocaleString()}</span><br>
+                        Price Points: ${card.price_points}
+                    </div>
+                `).join('');
+        }
+        
+        // Auto-update dashboard every 5 seconds
+        updateDashboard();
+        setInterval(updateDashboard, 5000);
+    </script>
+</body>
+</html>

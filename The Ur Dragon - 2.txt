@@ -1,0 +1,97 @@
+1 Yavimaya Coast
+1 Underground River
+1 Arcane Sanctum
+1 Swords to Plowshares
+1 Swiftfoot Boots
+1 Atarka, World Render
+1 Austere Command
+2 Swamp
+1 Sulfurous Springs
+1 Sol Ring
+1 Shivan Reef
+1 Rhythm of the Wild
+1 Crucible of Fire
+1 Crumbling Necropolis
+1 Crux of Fate
+1 Profane Tutor
+1 Cyclonic Rift
+1 Dragon Arch
+1 Dragon Mage
+1 Dragon's Hoard
+1 Dragonlord Ojutai
+2 Plains
+1 Piru, the Volatile
+1 Drakuseth, Maw of Flames
+1 Dromoka, the Eternal
+1 Eerie Interference
+1 Path of Ancestry
+1 Farseek
+1 Night's Whisper
+1 Nature's Lore
+1 Frontier Bivouac
+1 Frontier Siege
+1 Gadrak, the Crown-Scourge
+1 Haven of the Spirit Dragon
+2 Mountain
+1 Iroas, God of Victory
+1 Llanowar Wastes
+1 Jungle Shrine
+1 Lightning Greaves
+1 Karplusan Forest
+1 Karrthus, Tyrant of Jund
+1 Keiga, the Tide Star
+1 Kodama's Reach
+1 Last March of the Ents
+1 Kaalia of the Vast
+2 Island
+1 Morophon, the Boundless
+1 Heroic Intervention
+1 Mystic Monastery
+3 Forest
+1 Nicol Bolas, the Ravager
+1 Fellwar Stone
+1 Nomad Outpost
+1 Ojutai, Soul of Winter
+1 Old Gnawbone
+1 Opulent Palace
+1 Painful Truths
+1 Exotic Orchard
+1 Dragonspeaker Shaman
+1 Dragonlord's Servant
+1 Cultivate
+1 Queza, Augur of Agonies
+1 Teferi's Protection
+1 Command Tower
+1 Rith, Liberated Primeval
+1 Rivaz of the Claw
+1 Sakura-Tribe Elder
+1 Sandsteppe Citadel
+1 Savage Lands
+1 Savage Ventmaw
+1 Seaside Citadel
+1 Secluded Courtyard
+1 Caves of Koilos
+1 Silumgar, the Drifting Death
+1 Skyshroud Claim
+1 Brushland
+1 Bladewing the Risen
+1 Sunscorch Regent
+1 Battlefield Forge
+1 Ash Barrens
+1 Arcane Signet
+1 Temur Ascendancy
+1 Teneb, the Harvester
+1 Terror of Mount Velus
+1 Tiamat
+1 Unclaimed Territory
+1 Animate Dead
+1 Terror of the Peaks
+1 Whip of Erebos
+1 Adarkar Wastes
+1 Yosei, the Morning Star
+1 Urza's Incubator
+1 Nexus of Fate
+1 Eternal Witness
+
+1 The Ur-Dragon
+

@@ -1,0 +1,119 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mtg-ingestor
+  namespace: mtg-data
+spec:
+  schedule: "0 3 * * *"  # Run daily at 3 AM UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: mtg-ingestor
+            component: cronjob
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: mtg-ingestor
+            image: mtg-ingestor:latest
+            imagePullPolicy: Always
+            env:
+            - name: KAFKA_BROKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: mtg-ingestor-config
+                  key: kafka.brokers
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mtg-postgres-secret
+                  key: password
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: mtg-aws-secret
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mtg-aws-secret
+                  key: secret-access-key
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "250m"
+              limits:
+                memory: "2Gi"
+                cpu: "1000m"
+            volumeMounts:
+            - name: config
+              mountPath: /app/configs
+              readOnly: true
+          volumes:
+          - name: config
+            configMap:
+              name: mtg-ingestor-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mtg-ingestor-config
+  namespace: mtg-data
+data:
+  kafka.brokers: "kafka-0.kafka-headless.mtg-data.svc.cluster.local:9092,kafka-1.kafka-headless.mtg-data.svc.cluster.local:9092,kafka-2.kafka-headless.mtg-data.svc.cluster.local:9092"
+  config.yaml: |
+    app:
+      name: mtg-ingestor
+      environment: production
+      log_level: info
+    
+    kafka:
+      brokers: kafka-0.kafka-headless.mtg-data.svc.cluster.local:9092,kafka-1.kafka-headless.mtg-data.svc.cluster.local:9092,kafka-2.kafka-headless.mtg-data.svc.cluster.local:9092
+      topics:
+        cards: mtg.cards
+        sets: mtg.sets
+        prices: mtg.prices
+      producer:
+        retries: 10
+        batch_size: 16384
+    
+    postgres:
+      host: postgres.mtg-data.svc.cluster.local
+      port: 5432
+      database: mtg
+      user: mtg_user
+      ssl_mode: require
+      max_connections: 10
+    
+    s3:
+      bucket: mtg-data
+      region: us-east-1
+      prefix: raw/mtgjson
+    
+    fetcher:
+      timeout: 30m
+      retry_attempts: 3
+      retry_delay: 5s
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mtg-postgres-secret
+  namespace: mtg-data
+type: Opaque
+stringData:
+  password: "changeme"  # Replace with actual password
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mtg-aws-secret
+  namespace: mtg-data
+type: Opaque
+stringData:
+  access-key-id: "your-access-key"  # Replace with actual AWS access key
+  secret-access-key: "your-secret-key"  # Replace with actual AWS secret key
