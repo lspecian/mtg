@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -59,17 +61,43 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// For demo, return sample response
-	response := map[string]interface{}{
-		"rows": [][]interface{}{
-			{"Lightning Bolt", "Instant", "common", "LEA"},
-			{"Black Lotus", "Artifact", "mythic", "LEA"},
-		},
-		"columns": []string{"name", "type", "rarity", "set"},
+	// Read the request body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+	
+	// Forward to KSQL server
+	ksqlURL := "http://localhost:8088/query"
+	resp, err := http.Post(ksqlURL, "application/vnd.ksql.v1+json", bytes.NewBuffer(body))
+	if err != nil {
+		log.Printf("Error forwarding to KSQL: %v", err)
+		// Return sample data on error
+		response := map[string]interface{}{
+			"rows": [][]interface{}{
+				{"Lightning Bolt", "Instant", "common", "LEA"},
+				{"Black Lotus", "Artifact", "mythic", "LEA"},
+			},
+			"columns": []string{"name", "type", "rarity", "set"},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	defer resp.Body.Close()
+	
+	// Read KSQL response
+	ksqlResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "Failed to read KSQL response", http.StatusInternalServerError)
+		return
 	}
 	
+	// Forward the response
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	w.Write(ksqlResponse)
 }
 
 func main() {

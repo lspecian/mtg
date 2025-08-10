@@ -373,11 +373,10 @@ Example: SELECT * FROM cards_raw LIMIT 10;"></textarea>
         // Query templates
         const templates = {
             recentCards: `SELECT 
-    card->name AS card_name,
-    card->type AS card_type,
-    card->rarity AS rarity,
-    card->setCode AS set_code
-FROM cards_raw 
+    data->deck_name AS deck_name,
+    data->total_cards AS total_cards,
+    data->total_value AS value
+FROM DECK_VALUES_STREAM 
 LIMIT 20;`,
             
             rareCards: `SELECT 
@@ -397,11 +396,10 @@ EMIT CHANGES
 LIMIT 10;`,
             
             priceAlerts: `SELECT 
-    data->card_uuid AS card_id,
-    data->price AS price,
-    data->date AS price_date
-FROM prices_raw 
-WHERE data->price > 100
+    data->deck_name AS deck_name,
+    data->total_value AS value
+FROM DECK_VALUES_STREAM 
+WHERE data->total_value > 400
 LIMIT 20;`,
             
             cardStats: `SELECT 
@@ -453,8 +451,8 @@ LIMIT 20;`
                 queryCount++;
                 document.getElementById('query-count').textContent = queryCount;
                 
-                // Execute via KSQL REST API
-                const response = await fetch('http://localhost:8088/query', {
+                // Execute via proxy server
+                const response = await fetch('/api/query', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/vnd.ksql.v1+json',
@@ -532,22 +530,69 @@ LIMIT 20;`
             const resultsEl = document.getElementById('results');
             const format = document.getElementById('output-format').value;
             
-            if (!data || !data.rows) {
-                resultsEl.innerHTML = '<p style="color: #666;">No results found</p>';
-                return;
-            }
-            
-            totalResults += data.rows.length;
-            document.getElementById('result-count').textContent = totalResults;
-            document.getElementById('result-info').textContent = `${data.rows.length} rows`;
-            
-            if (format === 'json') {
-                resultsEl.innerHTML = `<div class="json-view">${JSON.stringify(data, null, 2)}</div>`;
-            } else if (format === 'cards') {
-                displayCardView(data);
+            // Handle KSQL response format
+            if (Array.isArray(data)) {
+                // Extract rows from KSQL response
+                const rows = data.filter(item => item.row).map(item => item.row.columns);
+                const header = data.find(item => item.header);
+                
+                if (rows.length === 0) {
+                    resultsEl.innerHTML = '<p style="color: #666;">No results found</p>';
+                    return;
+                }
+                
+                totalResults += rows.length;
+                document.getElementById('result-count').textContent = totalResults;
+                document.getElementById('result-info').textContent = `${rows.length} rows`;
+                
+                if (format === 'json') {
+                    resultsEl.innerHTML = `<div class="json-view">${JSON.stringify(rows, null, 2)}</div>`;
+                } else {
+                    displayKSQLResults(rows, header);
+                }
+            } else if (data && data.rows) {
+                // Handle old format
+                totalResults += data.rows.length;
+                document.getElementById('result-count').textContent = totalResults;
+                document.getElementById('result-info').textContent = `${data.rows.length} rows`;
+                
+                if (format === 'json') {
+                    resultsEl.innerHTML = `<div class="json-view">${JSON.stringify(data, null, 2)}</div>`;
+                } else if (format === 'cards') {
+                    displayCardView(data);
+                } else {
+                    displayTableView(data);
+                }
             } else {
-                displayTableView(data);
+                resultsEl.innerHTML = '<p style="color: #666;">No results found</p>';
             }
+        }
+        
+        // Display KSQL results
+        function displayKSQLResults(rows, header) {
+            const resultsEl = document.getElementById('results');
+            let html = '<table class="result-table"><tbody>';
+            
+            // Display each row
+            for (const row of rows) {
+                if (typeof row[0] === 'object') {
+                    // Nested object - display as key-value pairs
+                    for (const [key, value] of Object.entries(row[0])) {
+                        html += `<tr><td><strong>${key}</strong></td><td>${value}</td></tr>`;
+                    }
+                    html += '<tr><td colspan="2" style="border-top: 2px solid #667eea; height: 10px;"></td></tr>';
+                } else {
+                    // Simple values
+                    html += '<tr>';
+                    for (const cell of row) {
+                        html += `<td>${cell !== null ? cell : '-'}</td>`;
+                    }
+                    html += '</tr>';
+                }
+            }
+            
+            html += '</tbody></table>';
+            resultsEl.innerHTML = html;
         }
         
         // Display table view
