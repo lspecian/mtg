@@ -39,30 +39,38 @@ A comprehensive Magic: The Gathering data platform with real-time processing, de
 ### Prerequisites
 
 - Docker & Docker Compose
-- Go 1.21+ (for local development)
 - 8GB+ RAM recommended
 - Ports 8080-8090, 9000-9001, 5432 available
+- Go 1.21+ (optional - only for local development)
 
-### Using Make (Recommended)
+### One-Command Setup
 
 ```bash
-# Start entire development environment
-make up
-
-# Run complete setup (build + start + init)
+# Clone and setup everything
+git clone https://github.com/lspecian/mtg.git
+cd mtg
 make setup
 
-# Ingest MTG data
+# That's it! Everything is now running in Docker
+```
+
+### Step-by-Step Usage
+
+```bash
+# 1. Setup complete environment (first time only)
+make setup
+
+# 2. Ingest MTG card data from MTGJSON
 make ingest-mtg
 
-# Ingest deck files
+# 3. Ingest your deck files
 make ingest-decks
 
-# View logs
-make logs
+# 4. View deck values
+make query-decks
 
-# Stop everything
-make down
+# 5. Access the web UI
+open http://localhost:8090/query-ui.html
 ```
 
 ### Manual Setup

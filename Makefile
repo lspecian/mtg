@@ -20,12 +20,18 @@ DECKS_DIR = decks
 # === MAIN COMMANDS ===
 
 .PHONY: setup
-setup: up create-topics build deploy-flink ## Complete setup: start services, create topics, build, and deploy
+setup: down up create-topics build-docker deploy-flink init-ksql ## Complete setup: start services, create topics, build, and deploy
 	@echo "✅ Setup complete! Services are running."
 	@echo "📊 Access points:"
 	@echo "  - Kafka UI: http://localhost:8080"
 	@echo "  - Flink UI: http://localhost:8081"
 	@echo "  - Query UI: http://localhost:8090/query-ui.html"
+	@echo "  - Dashboard: http://localhost:8090/"
+	@echo ""
+	@echo "📝 Next steps:"
+	@echo "  1. Ingest MTG data: make ingest-mtg"
+	@echo "  2. Ingest decks: make ingest-decks"
+	@echo "  3. Query deck values: make query-decks"
 
 .PHONY: up
 up: ## Start all Docker services
@@ -80,6 +86,10 @@ create-topics: ## Create Kafka topics
 	@echo "📝 Creating Kafka topics..."
 	@$(INGESTOR_DIR)/scripts/create-deck-topics.sh || true
 	@echo "✅ Kafka topics created"
+
+.PHONY: init-ksql
+init-ksql: ## Initialize KSQL streams
+	@./scripts/init-ksql-streams.sh || true
 
 .PHONY: kafka-topics
 kafka-topics: ## List Kafka topics

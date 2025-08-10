@@ -220,6 +220,22 @@ services:
     profiles:
       - deck-ingest
 
+  # Web UI for queries and dashboard
+  web-ui:
+    build:
+      context: ./data-ingestion/mtg-ingestor/web-ui
+      dockerfile: Dockerfile
+    container_name: web-ui
+    ports:
+      - "8090:8090"
+    depends_on:
+      - kafka
+      - ksqldb-server
+    environment:
+      PORT: "8090"
+    networks:
+      - mtg-network
+
   # Adminer for database management
   adminer:
     image: adminer:latest

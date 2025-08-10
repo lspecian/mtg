@@ -70,7 +70,12 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	
 	// Forward to KSQL server
-	ksqlURL := "http://localhost:8088/query"
+	// Use container name when running in Docker, localhost for local dev
+	ksqlHost := os.Getenv("KSQL_HOST")
+	if ksqlHost == "" {
+		ksqlHost = "ksqldb-server"
+	}
+	ksqlURL := fmt.Sprintf("http://%s:8088/query", ksqlHost)
 	resp, err := http.Post(ksqlURL, "application/vnd.ksql.v1+json", bytes.NewBuffer(body))
 	if err != nil {
 		log.Printf("Error forwarding to KSQL: %v", err)
